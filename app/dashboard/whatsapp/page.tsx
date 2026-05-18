@@ -59,7 +59,19 @@ export default function WhatsappSimulator() {
       localDb.saveWhatsappMessages(currentOrg.id, defaultLogs)
       setMessages(defaultLogs)
     } else {
-      setMessages(logs)
+      // Deduplicate keys in case there are historic duplicates in localStorage
+      const seenIds = new Set<string>()
+      const sanitizedLogs = logs.map((msg) => {
+        let uniqueId = msg.id
+        if (seenIds.has(uniqueId)) {
+          uniqueId = `${uniqueId}_sanitized_${Math.random().toString(36).substring(2, 7)}`
+        }
+        seenIds.add(uniqueId)
+        return { ...msg, id: uniqueId }
+      })
+      
+      localDb.saveWhatsappMessages(currentOrg.id, sanitizedLogs)
+      setMessages(sanitizedLogs)
     }
   }
 
