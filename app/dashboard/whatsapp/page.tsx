@@ -328,7 +328,7 @@ export default function WhatsappSimulator() {
         </div>
 
         {/* Chats List */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="p-2 space-y-1">
             <div
               className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
@@ -401,7 +401,7 @@ export default function WhatsappSimulator() {
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Main Chat Workspace */}
@@ -432,7 +432,7 @@ export default function WhatsappSimulator() {
         </div>
 
         {/* Messages Feed */}
-        <ScrollArea className="flex-1 p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-muted/50 via-card to-card">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-muted/50 via-card to-card">
           <div className="space-y-4 max-w-3xl mx-auto">
             {messages.map((msg) => {
               const isBot = msg.sender === 'bot'
@@ -476,7 +476,7 @@ export default function WhatsappSimulator() {
                     {isBot && msg.approvalData && (
                       <div className="mt-3.5 border-t pt-3 flex flex-col gap-2 bg-muted/30 p-2.5 rounded-lg border">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
                           Pending Catalog Approval
                         </div>
                         <div className="flex gap-2 mt-1.5">
@@ -533,7 +533,7 @@ export default function WhatsappSimulator() {
             
             <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Input Control Box */}
         <div className="p-4 border-t bg-card flex items-center gap-3 shadow-sm shrink-0">
