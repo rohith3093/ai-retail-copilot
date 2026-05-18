@@ -36,6 +36,7 @@ export default function WhatsappSimulator() {
   const [activeChat, setActiveChat] = useState<'copilot' | 'apex' | 'a1'>('copilot')
   const [isTyping, setIsTyping] = useState(false)
   const [isVoiceSimulating, setIsVoiceSimulating] = useState(false)
+  const [voiceQueryIndex, setVoiceQueryIndex] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load message logs from localDb
@@ -117,7 +118,16 @@ export default function WhatsappSimulator() {
     if (isVoiceSimulating) return
     setIsVoiceSimulating(true)
     
-    const sampleQuery = 'What are my top low stock items?'
+    const queries = [
+      'What are my top low stock items?',
+      'Check gross margin and profits reports.',
+      'Show my dead stock items and stagnant capital.',
+      'simulate alert'
+    ]
+    
+    const sampleQuery = queries[voiceQueryIndex]
+    setVoiceQueryIndex((prev) => (prev + 1) % queries.length)
+    
     let currentIdx = 0
     setInputText('')
 
@@ -131,7 +141,7 @@ export default function WhatsappSimulator() {
           handleSendMessage(sampleQuery)
         }, 600)
       }
-    }, 60)
+    }, 45)
   }
 
   // Live database updates triggered by WhatsApp approvals!
