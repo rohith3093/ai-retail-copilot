@@ -44,6 +44,7 @@ interface DashboardStats {
   lowStockCount: number
   revenueChange: number
   profitChange: number
+  healthScore: number
 }
 
 export default function DashboardPage() {
@@ -132,6 +133,8 @@ export default function DashboardPage() {
         }, 0)
         const totalProfit = totalRevenue - totalCost
         const lowStockCount = items.filter((i) => i.quantity <= i.minStockLevel).length
+        const totalSKUs = items.length
+        const healthScore = totalSKUs > 0 ? Math.round(((totalSKUs - lowStockCount) / totalSKUs) * 100) : 100
 
         // Previous period comparison (simulated)
         const revenueChange = totalRevenue > 0 ? 12.5 : 0
@@ -140,10 +143,11 @@ export default function DashboardPage() {
         setStats({
           totalRevenue,
           totalProfit,
-          totalItems: items.length,
+          totalItems: totalSKUs,
           lowStockCount,
           revenueChange,
           profitChange,
+          healthScore,
         })
 
         // Recent transactions with item names
@@ -311,13 +315,28 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <CardTitle className="text-sm font-medium">Inventory Health</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalItems || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Unique SKUs in inventory
+          <CardContent className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <span className="text-2xl font-bold">{stats?.healthScore || 100}%</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                (stats?.healthScore || 100) >= 90 ? 'text-green-500' : (stats?.healthScore || 100) >= 70 ? 'text-amber-500' : 'text-red-500'
+              }`}>
+                {(stats?.healthScore || 100) >= 90 ? 'Excellent' : (stats?.healthScore || 100) >= 70 ? 'Optimal' : 'Attention Needed'}
+              </span>
+            </div>
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-500 ${
+                  (stats?.healthScore || 100) >= 90 ? 'bg-green-500' : (stats?.healthScore || 100) >= 70 ? 'bg-amber-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${stats?.healthScore || 100}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground pt-0.5">
+              {stats?.totalItems || 0} unique SKUs in catalog
             </p>
           </CardContent>
         </Card>
