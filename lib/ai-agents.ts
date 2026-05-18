@@ -250,8 +250,31 @@ export async function orchestrateBusinessIntelligence(
   // Filter, group, and prioritize with Alert Agent
   const prioritized = runAlertAgentOffline(combined)
 
+  // Filter out insights that the user has already approved or rejected
+  let filteredPrioritized = prioritized
+  if (typeof window !== 'undefined') {
+    try {
+      const actedList = JSON.parse(localStorage.getItem('ai_retail_acted_insights') || '[]')
+      filteredPrioritized = prioritized.filter((ins) => {
+        return !ins.itemIds?.some((itemId) => {
+          const actionMap: Record<string, string> = {
+            'dead_stock': 'discount',
+            'reorder': 'reorder',
+            'pricing': 'discount',
+            'discount': 'discount',
+          }
+          const actionType = actionMap[ins.type || ''] || ins.type || 'discount'
+          const fingerprint = `${actionType}_${itemId}`
+          return actedList.includes(fingerprint)
+        })
+      })
+    } catch (e) {
+      console.warn('Failed to filter acted insights:', e)
+    }
+  }
+
   // Map to final AIInsight items
-  const finalInsights: AIInsight[] = prioritized.map((ins, index) => ({
+  const finalInsights: AIInsight[] = filteredPrioritized.map((ins, index) => ({
     id: `insight_agent_${Date.now()}_${index}`,
     orgId: org.id,
     type: ins.type || 'trend',

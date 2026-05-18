@@ -160,6 +160,18 @@ export default function WhatsappSimulator() {
   const handleApproveAction = (msgId: string, approvalData: any) => {
     if (!currentOrg) return
 
+    // Record decision to persistent memory
+    try {
+      const actedKey = `${approvalData.actionType}_${approvalData.itemId}`
+      const actedList = JSON.parse(localStorage.getItem('ai_retail_acted_insights') || '[]')
+      if (!actedList.includes(actedKey)) {
+        actedList.push(actedKey)
+        localStorage.setItem('ai_retail_acted_insights', JSON.stringify(actedList))
+      }
+    } catch (e) {
+      console.warn('Failed to save decision memory:', e)
+    }
+
     try {
       const items = localDb.getItems(currentOrg.id)
       const targetItem = items.find((i) => i.id === approvalData.itemId)
@@ -236,6 +248,22 @@ export default function WhatsappSimulator() {
 
   const handleRejectAction = (msgId: string) => {
     if (!currentOrg) return
+
+    // Record decision to persistent memory
+    try {
+      const targetMsg = messages.find((m) => m.id === msgId)
+      if (targetMsg && targetMsg.approvalData) {
+        const approvalData = targetMsg.approvalData
+        const actedKey = `${approvalData.actionType}_${approvalData.itemId}`
+        const actedList = JSON.parse(localStorage.getItem('ai_retail_acted_insights') || '[]')
+        if (!actedList.includes(actedKey)) {
+          actedList.push(actedKey)
+          localStorage.setItem('ai_retail_acted_insights', JSON.stringify(actedList))
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to save decision memory:', e)
+    }
 
     const updatedMessages = messages.map((msg) => {
       if (msg.id === msgId) {
