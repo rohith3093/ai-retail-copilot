@@ -655,7 +655,7 @@ export const localDb = {
     const all = getStorage<WhatsappSimMessage[]>('whatsapp_messages', [])
     const newMsg: WhatsappSimMessage = {
       ...msg,
-      id: `msg_${Date.now()}`,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       timestamp: new Date().toISOString(),
     }
     all.push(newMsg)

@@ -76,7 +76,7 @@ export default function WhatsappSimulator() {
     if (!textToSend.trim() || !currentOrg) return
 
     const userMsg: WhatsappSimMessage = {
-      id: `msg_user_${Date.now()}`,
+      id: `msg_user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       orgId: currentOrg.id,
       sender: 'user',
       text: textToSend,
@@ -97,7 +97,7 @@ export default function WhatsappSimulator() {
       const botResponse = generateAiResponse(textToSend.toLowerCase())
       
       const botMsg: WhatsappSimMessage = {
-        id: `msg_bot_${Date.now()}`,
+        id: `msg_bot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         orgId: currentOrg.id,
         sender: 'bot',
         text: botResponse.text,
@@ -204,7 +204,7 @@ export default function WhatsappSimulator() {
 
       // Send bot confirmation message
       const botConfirmation: WhatsappSimMessage = {
-        id: `confirm_${Date.now()}`,
+        id: `confirm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         orgId: currentOrg.id,
         sender: 'bot',
         text: logMessage,
@@ -237,7 +237,7 @@ export default function WhatsappSimulator() {
     })
 
     const botConfirmation: WhatsappSimMessage = {
-      id: `confirm_${Date.now()}`,
+      id: `confirm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       orgId: currentOrg.id,
       sender: 'bot',
       text: `❌ *Proposal Rejected.* No adjustments were committed.`,
