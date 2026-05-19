@@ -133,13 +133,7 @@ export default function AnalyticsPage() {
           const notes = String(row['Notes'] || row['notes'] || 'Bulk Sales Log CSV Import')
 
           if (!isFirebaseConfigured || !db) {
-            // 1. Deduct stock quantity in local DB if item is registered
-            if (matchedItem) {
-              const newQty = Math.max(0, matchedItem.quantity - qty)
-              localDb.updateItem(matchedItem.id, { quantity: newQty })
-            }
-
-            // 2. Add local sale transaction record
+            // Add local sale transaction record (handles auto-deduction)
             localDb.addTransaction({
               orgId: currentOrg.id,
               itemId: matchedItem?.id || 'unregistered',

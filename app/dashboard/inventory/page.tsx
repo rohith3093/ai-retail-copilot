@@ -1043,8 +1043,6 @@ export default function InventoryPage() {
                             const newQty = row.item.quantity - row.qty
                             
                             if (!isFirebaseConfigured || !db) {
-                              // Local update
-                              localDb.updateItem(row.item.id, { quantity: newQty })
                               localDb.addTransaction({
                                 orgId: currentOrg.id,
                                 itemId: row.item.id,
