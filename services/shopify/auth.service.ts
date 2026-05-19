@@ -9,6 +9,16 @@ export class ShopifyAuthService {
   public static getAuthUrl(shopDomain: string, redirectUri: string, state: string): string {
     const scopes = ['read_products', 'read_inventory', 'read_orders', 'read_customers'].join(',')
     const sanitizedShop = shopDomain.replace(/^https?:\/\//, '').trim()
+
+    // In Mock/Sandbox Mode, bypass the real Shopify OAuth redirect and route directly back to the callback handler
+    if (this.CLIENT_ID === 'mock_shopify_client_id_123') {
+      const urlObj = new URL(redirectUri)
+      urlObj.searchParams.set('code', 'mock_auth_code_123')
+      urlObj.searchParams.set('shop', sanitizedShop)
+      urlObj.searchParams.set('state', state)
+      return urlObj.toString()
+    }
+
     return `https://${sanitizedShop}/admin/oauth/authorize?client_id=${this.CLIENT_ID}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
   }
 
