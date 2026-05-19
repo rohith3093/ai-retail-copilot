@@ -140,3 +140,87 @@ export interface TransactionFormData {
   unitPrice: number
   notes?: string
 }
+
+// Shopify Integration Types
+export interface ShopifyStore {
+  id: string
+  organizationId: string
+  shopifyStoreId?: string
+  shopDomain: string
+  accessToken: string
+  connectedAt: Date
+  syncStatus: 'idle' | 'syncing' | 'success' | 'failed'
+  lastSyncedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ShopifyProduct {
+  id: string
+  organizationId: string
+  storeId: string
+  externalProductId: string
+  title: string
+  sku?: string
+  category?: string
+  vendor?: string
+  price: number
+  cost?: number
+  inventoryQuantity: number
+  variantData?: any
+  lastSyncedAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ShopifyCustomer {
+  id: string
+  organizationId: string
+  storeId: string
+  externalCustomerId: string
+  name: string
+  email?: string
+  orderCount: number
+  totalSpent: number
+  lastSyncedAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface ShopifyOrder {
+  id: string
+  organizationId: string
+  storeId: string
+  externalOrderId: string
+  totalPrice: number
+  customerId?: string
+  externalCustomerId?: string
+  orderDate: Date
+  lineItems: any
+  financialStatus?: string
+  lastSyncedAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface InventoryEvent {
+  id: string
+  organizationId: string
+  productId: string
+  previousQuantity: number
+  newQuantity: number
+  eventType: 'shopify_sync' | 'webhook_update' | 'pos_checkout' | 'manual_adjustment'
+  timestamp: Date
+}
+
+export interface WebhookEvent {
+  id: string
+  organizationId: string
+  topic: string
+  payload: any
+  processed: boolean
+  errorMessage?: string
+  createdAt: Date
+  processedAt?: Date
+}
+

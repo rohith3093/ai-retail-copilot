@@ -33,6 +33,7 @@ import {
   Loader2,
   MessageSquare,
   Truck,
+  ShoppingBag,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
@@ -43,6 +44,7 @@ const navItems = [
   { href: '/dashboard/dead-stock', icon: AlertTriangle, label: 'Dead Stock' },
   { href: '/dashboard/whatsapp', icon: MessageSquare, label: 'WhatsApp Copilot' },
   { href: '/dashboard/suppliers', icon: Truck, label: 'Suppliers' },
+  { href: '/dashboard/shopify', icon: ShoppingBag, label: 'Shopify Sync' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ]
 

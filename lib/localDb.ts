@@ -445,6 +445,10 @@ if (isClient) {
 
 // Exportable Local Database Methods
 export const localDb = {
+  // Utility methods
+  getStorage: <T>(key: string, defaultValue: T): T => getStorage<T>(key, defaultValue),
+  setStorage: <T>(key: string, value: T): void => setStorage<T>(key, value),
+
   // Reset
   resetDb: () => {
     if (!isClient) return
