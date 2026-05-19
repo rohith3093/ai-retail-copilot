@@ -66,6 +66,10 @@ import {
   Image as ImageIcon,
   CheckCircle,
   FileSpreadsheet,
+  Calculator,
+  ShoppingCart,
+  Receipt,
+  Trash,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
@@ -139,6 +143,13 @@ export default function InventoryPage() {
   const [ocrItems, setOcrItems] = useState<OcrExtractedItem[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
+
+  // Quick POS Simulator States
+  const [isPosOpen, setIsPosOpen] = useState(false)
+  const [posCart, setPosCart] = useState<{ item: InventoryItem; qty: number }[]>([])
+  const [posSelectedItem, setPosSelectedItem] = useState<string>('')
+  const [posQty, setPosQty] = useState<number>(1)
+  const [posCheckoutSuccess, setPosCheckoutSuccess] = useState(false)
 
   const fetchInventory = useCallback(async () => {
     if (!currentOrg) return
@@ -831,6 +842,322 @@ export default function InventoryPage() {
                       Commit Stock & Ledger Orders
                     </Button>
                   </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Quick POS Billing Counter */}
+          <Dialog open={isPosOpen} onOpenChange={(open) => {
+            setIsPosOpen(open)
+            if (!open) {
+              setPosCart([])
+              setPosSelectedItem('')
+              setPosQty(1)
+              setPosCheckoutSuccess(false)
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="bg-green-600/5 border-green-600/20 hover:bg-green-600/10 text-green-600 dark:text-green-500 font-semibold text-xs h-9">
+                <Calculator className="mr-2 h-4 w-4 text-green-600 animate-pulse" />
+                Quick Bill (POS)
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-600">
+                  <Calculator className="h-5 w-5 text-green-600" />
+                  Quick Bill POS Terminal
+                </DialogTitle>
+                <DialogDescription>
+                  Sell products from your active catalog directly. This decrements inventory and logs sales instantly.
+                </DialogDescription>
+              </DialogHeader>
+
+              {!posCheckoutSuccess ? (
+                <div className="space-y-6 pt-4">
+                  {/* Cart Inputs */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/30 p-4 rounded-xl border">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="pos-item" className="text-xs font-semibold">Select Product</Label>
+                      <Select
+                        value={posSelectedItem}
+                        onValueChange={setPosSelectedItem}
+                      >
+                        <SelectTrigger id="pos-item" className="bg-card">
+                          <SelectValue placeholder="Search or select a product..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {items.filter(i => i.quantity > 0).map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} ({item.quantity} in stock) — {formatCurrency(item.sellingPrice)}
+                            </SelectItem>
+                          ))}
+                          {items.filter(i => i.quantity > 0).length === 0 && (
+                            <div className="p-2 text-center text-xs text-muted-foreground">
+                              No products in stock. Add inventory first!
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="pos-qty" className="text-xs font-semibold">Quantity</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="pos-qty"
+                          type="number"
+                          min={1}
+                          value={posQty}
+                          onChange={(e) => setPosQty(parseInt(e.target.value) || 1)}
+                          className="bg-card text-center"
+                        />
+                        <Button 
+                          onClick={() => {
+                            if (!posSelectedItem) {
+                              toast.error('Select a product first')
+                              return
+                            }
+                            const item = items.find(i => i.id === posSelectedItem)
+                            if (!item) return
+                            if (posQty <= 0) {
+                              toast.error('Quantity must be greater than 0')
+                              return
+                            }
+                            if (posQty > item.quantity) {
+                              toast.error(`Insufficient stock! Only ${item.quantity} available.`)
+                              return
+                            }
+
+                            // Add or update in cart
+                            const existingIdx = posCart.findIndex(c => c.item.id === item.id)
+                            if (existingIdx > -1) {
+                              const newQty = posCart[existingIdx].qty + posQty
+                              if (newQty > item.quantity) {
+                                toast.error(`Cannot exceed current stock limit of ${item.quantity} units!`)
+                                return
+                              }
+                              const newCart = [...posCart]
+                              newCart[existingIdx].qty = newQty
+                              setPosCart(newCart)
+                            } else {
+                              setPosCart([...posCart, { item, qty: posQty }])
+                            }
+
+                            toast.success(`Added ${item.name} to cart`)
+                            setPosSelectedItem('')
+                            setPosQty(1)
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white shrink-0 border-none h-9 text-xs"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cart Details */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                      <ShoppingCart className="h-4 w-4" />
+                      Shopping Cart ({posCart.reduce((acc, c) => acc + c.qty, 0)} units)
+                    </h4>
+
+                    <div className="border rounded-xl overflow-hidden bg-card">
+                      <Table>
+                        <TableHeader className="bg-muted/40">
+                          <TableRow>
+                            <TableHead className="text-xs">Product Details</TableHead>
+                            <TableHead className="text-xs text-center">Qty</TableHead>
+                            <TableHead className="text-xs text-right">Unit Price</TableHead>
+                            <TableHead className="text-xs text-right">Subtotal</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {posCart.map((row, idx) => (
+                            <TableRow key={idx} className="hover:bg-muted/5">
+                              <TableCell className="py-2.5">
+                                <span className="text-xs font-semibold">{row.item.name}</span>
+                                <p className="text-[10px] text-muted-foreground font-mono">{row.item.sku}</p>
+                              </TableCell>
+                              <TableCell className="text-center py-2.5 font-semibold text-xs">{row.qty}</TableCell>
+                              <TableCell className="text-right py-2.5 text-xs font-mono">{formatCurrency(row.item.sellingPrice)}</TableCell>
+                              <TableCell className="text-right py-2.5 text-xs font-mono font-bold text-green-600">
+                                {formatCurrency(row.qty * row.item.sellingPrice)}
+                              </TableCell>
+                              <TableCell className="py-2.5">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => {
+                                    setPosCart(posCart.filter((_, i) => i !== idx))
+                                  }}
+                                >
+                                  <Trash className="h-3.5 w-3.5" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {posCart.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-8 text-xs text-muted-foreground">
+                                Cart is empty. Select a product above to start billing!
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Total Box */}
+                    {posCart.length > 0 && (
+                      <div className="flex justify-between items-center bg-green-500/5 border border-green-500/10 rounded-xl p-4">
+                        <span className="text-sm font-semibold text-foreground">Grand Total Value:</span>
+                        <span className="text-xl font-bold text-green-600 font-mono">
+                          {formatCurrency(posCart.reduce((acc, c) => acc + (c.qty * c.item.sellingPrice), 0))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter className="gap-2 pt-2 border-t">
+                    <Button variant="outline" onClick={() => setIsPosOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={async () => {
+                        if (!currentOrg) {
+                          toast.error('No organization selected')
+                          return
+                        }
+                        if (posCart.length === 0) {
+                          toast.error('Add items to cart first')
+                          return
+                        }
+                        setIsSaving(true)
+                        try {
+                          for (const row of posCart) {
+                            const newQty = row.item.quantity - row.qty
+                            
+                            if (!isFirebaseConfigured || !db) {
+                              // Local update
+                              localDb.updateItem(row.item.id, { quantity: newQty })
+                              localDb.addTransaction({
+                                orgId: currentOrg.id,
+                                itemId: row.item.id,
+                                type: 'sale',
+                                quantity: row.qty,
+                                unitPrice: row.item.sellingPrice,
+                                totalAmount: row.qty * row.item.sellingPrice,
+                                notes: 'POS Counter Sale checkout',
+                                createdBy: 'POS Terminal 1',
+                              })
+                            } else {
+                              // Firebase update
+                              await updateDoc(doc(db, 'inventory', row.item.id), {
+                                quantity: newQty,
+                                updatedAt: serverTimestamp(),
+                              })
+                              await addDoc(collection(db, 'transactions'), {
+                                orgId: currentOrg.id,
+                                itemId: row.item.id,
+                                type: 'sale',
+                                quantity: row.qty,
+                                unitPrice: row.item.sellingPrice,
+                                totalAmount: row.qty * row.item.sellingPrice,
+                                notes: 'POS Counter Sale checkout',
+                                createdBy: 'POS Terminal 1',
+                                createdAt: serverTimestamp(),
+                              })
+                            }
+                          }
+                          setPosCheckoutSuccess(true)
+                          toast.success('POS Sale recorded successfully & inventory updated!')
+                          fetchInventory()
+                        } catch (e) {
+                          console.error(e)
+                          toast.error('Failed to complete sale checkout')
+                        } finally {
+                          setIsSaving(false)
+                        }
+                      }}
+                      disabled={isSaving || posCart.length === 0}
+                      className="bg-green-600 hover:bg-green-700 text-white border-none text-xs h-9 animate-pulse"
+                    >
+                      {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Checkout & Log Sales
+                    </Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                <div className="space-y-6 pt-4 text-center animate-in fade-in zoom-in-95 duration-200">
+                  <div className="h-14 w-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto text-green-600">
+                    <Receipt className="h-7 w-7 animate-bounce" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-foreground">Sale Invoice Generated!</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Transaction has been successfully logged to your profit ledger.
+                    </p>
+                  </div>
+
+                  {/* Glassmorphic Print Receipt */}
+                  <div className="border border-green-500/20 bg-gradient-to-b from-green-500/5 to-transparent rounded-2xl p-5 max-w-sm mx-auto text-left space-y-3 font-mono text-[11px] shadow-lg relative">
+                    <div className="absolute right-3 top-3 border-2 border-green-600 text-green-600 font-bold px-1.5 py-0.5 rounded text-[8px] rotate-12">
+                      PAID CASH
+                    </div>
+                    <div className="text-center border-b border-dashed pb-2 space-y-1 font-sans">
+                      <h4 className="font-bold text-xs">RETAIL COPILOT CO.</h4>
+                      <p className="text-[9px] text-muted-foreground">Pos Billing Counter Terminal #1</p>
+                      <p className="text-[8px] text-muted-foreground">Date: {new Date().toLocaleString()}</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      {posCart.map((row, idx) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>{row.item.name.substring(0, 20)} x {row.qty}</span>
+                          <span>{formatCurrency(row.qty * row.item.sellingPrice)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-dashed pt-2 space-y-1">
+                      <div className="flex justify-between font-bold text-xs text-green-600">
+                        <span>TOTAL AMOUNT:</span>
+                        <span>{formatCurrency(posCart.reduce((acc, c) => acc + (c.qty * c.item.sellingPrice), 0))}</span>
+                      </div>
+                      <p className="text-[8px] text-muted-foreground text-center pt-2">
+                        Thank you for shopping with us!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 justify-center pt-2 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        window.print()
+                      }}
+                      className="text-xs h-9"
+                    >
+                      Print Receipt
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setPosCart([])
+                        setPosSelectedItem('')
+                        setPosQty(1)
+                        setPosCheckoutSuccess(false)
+                      }}
+                      className="bg-green-600 hover:bg-green-700 text-white border-none text-xs h-9"
+                    >
+                      New Sale Bill
+                    </Button>
+                  </div>
                 </div>
               )}
             </DialogContent>
