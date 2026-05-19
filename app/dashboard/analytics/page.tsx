@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useOrgStore } from '@/lib/store'
 import { db, isFirebaseConfigured } from '@/lib/firebase'
-import { collection, query, where, getDocs, addDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, serverTimestamp, Timestamp, orderBy, updateDoc, doc } from 'firebase/firestore'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -47,7 +47,9 @@ import {
   ArrowDownRight,
   BarChart3,
   Sparkles,
+  Upload,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import {
   BarChart,
   Bar,
@@ -90,6 +92,115 @@ export default function AnalyticsPage() {
     notes: '',
   })
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d'>('30d')
+  const [isImporting, setIsImporting] = useState(false)
+
+  const handleImportSalesCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !currentOrg) return
+
+    setIsImporting(true)
+    try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data)
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[]
+
+      let importedCount = 0
+      for (const row of jsonData) {
+        const sku = String(row['SKU'] || row['sku'] || row['Product SKU'] || '')
+        const productName = String(row['Name'] || row['name'] || row['Product Name'] || '')
+        const qty = Number(row['Quantity'] || row['quantity'] || row['Qty'] || row['Units'] || 0)
+        const sellingPrice = Number(row['Selling Price'] || row['sellingPrice'] || row['Price'] || row['Sale Price'] || 0)
+        
+        // Parse date safely or fall back to today
+        let saleDate = new Date()
+        const rawDate = row['Date'] || row['date'] || row['Timestamp'] || row['timestamp']
+        if (rawDate) {
+          const parsed = new Date(String(rawDate))
+          if (!isNaN(parsed.getTime())) {
+            saleDate = parsed
+          }
+        }
+
+        if (qty > 0 && (sku || productName)) {
+          // Find matching item in catalog to get cost price & reduce inventory stock
+          const matchedItem = items.find(
+            (i) => 
+              (sku && i.sku.toLowerCase() === sku.toLowerCase()) || 
+              (productName && i.name.toLowerCase() === productName.toLowerCase())
+          )
+
+          const notes = String(row['Notes'] || row['notes'] || 'Bulk Sales Log CSV Import')
+
+          if (!isFirebaseConfigured || !db) {
+            // 1. Deduct stock quantity in local DB if item is registered
+            if (matchedItem) {
+              const newQty = Math.max(0, matchedItem.quantity - qty)
+              localDb.updateItem(matchedItem.id, { quantity: newQty })
+            }
+
+            // 2. Add local sale transaction record
+            localDb.addTransaction({
+              orgId: currentOrg.id,
+              itemId: matchedItem?.id || 'unregistered',
+              type: 'sale',
+              quantity: qty,
+              unitPrice: sellingPrice,
+              totalAmount: qty * sellingPrice,
+              notes,
+              createdBy: 'Sales_CSV_Importer',
+              createdAt: saleDate,
+            })
+          } else {
+            // 1. Deduct stock quantity in Firebase
+            if (matchedItem) {
+              const newQty = Math.max(0, matchedItem.quantity - qty)
+              await updateDoc(doc(db, 'inventory', matchedItem.id), {
+                quantity: newQty,
+                updatedAt: serverTimestamp(),
+              })
+            }
+
+            // 2. Add Cloud sale transaction record
+            await addDoc(collection(db, 'transactions'), {
+              orgId: currentOrg.id,
+              itemId: matchedItem?.id || 'unregistered',
+              type: 'sale',
+              quantity: qty,
+              unitPrice: sellingPrice,
+              totalAmount: qty * sellingPrice,
+              notes,
+              createdAt: saleDate,
+              createdBy: 'Sales_CSV_Importer',
+            })
+          }
+          importedCount++
+        }
+      }
+
+      // Re-trigger dynamic AI agent calculation for the entire store
+      if (typeof window !== 'undefined') {
+        const freshItems = !isFirebaseConfigured || !db 
+          ? localDb.getItems(currentOrg.id) 
+          : items
+        const freshTransactions = !isFirebaseConfigured || !db 
+          ? localDb.getTransactions(currentOrg.id) 
+          : transactions
+
+        const { orchestrateBusinessIntelligence } = await import('@/lib/ai-agents')
+        await orchestrateBusinessIntelligence(freshItems, freshTransactions, currentOrg as any)
+      }
+
+      toast.success(`Successfully imported ${importedCount} sales transactions, updated active stock, and re-triggered AI agents!`)
+      fetchData()
+    } catch (error) {
+      console.error('Error importing sales CSV:', error)
+      toast.error('Failed to parse sales CSV file')
+    } finally {
+      setIsImporting(false)
+      if (e.target) e.target.value = ''
+    }
+  }
 
   const fetchData = useCallback(async () => {
     if (!currentOrg) return
@@ -305,7 +416,26 @@ export default function AnalyticsPage() {
           </div>
           <p className="text-muted-foreground">Track your sales, purchasing, and profit margins</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleImportSalesCSV}
+              className="hidden"
+              disabled={isImporting}
+            />
+            <Button variant="outline" asChild disabled={isImporting} className="bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 h-9 text-xs">
+              <span>
+                {isImporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4 text-primary" />
+                )}
+                Import Sales CSV
+              </span>
+            </Button>
+          </label>
           <Select value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as '7d' | '30d' | '90d')}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />

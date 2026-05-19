@@ -560,12 +560,12 @@ export const localDb = {
       .filter((t) => t.orgId === orgId)
       .map((t) => ({ ...t, createdAt: new Date(t.createdAt) }))
   },
-  addTransaction: (tx: Omit<Transaction, 'id' | 'createdAt'>) => {
+  addTransaction: (tx: Omit<Transaction, 'id' | 'createdAt'> & { createdAt?: Date }) => {
     const all = getStorage<Transaction[]>('transactions', [])
     const newTx: Transaction = {
       ...tx,
-      id: `tx_${Date.now()}`,
-      createdAt: new Date(),
+      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      createdAt: tx.createdAt || new Date(),
     }
     all.unshift(newTx)
     setStorage('transactions', all)
