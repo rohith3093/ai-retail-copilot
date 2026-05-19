@@ -32,7 +32,6 @@ import {
 export default function ShopifyDashboard() {
   const { currentOrg } = useOrgStore()
   const [shopUrl, setShopUrl] = useState('')
-  const [isConnecting, setIsConnecting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [activeStore, setActiveStore] = useState<any | null>(null)
   
@@ -147,21 +146,7 @@ export default function ShopifyDashboard() {
     }
   }, [currentOrg, fetchStoreData])
 
-  // Handle OAuth Redirection
-  const handleConnect = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!shopUrl.trim() || !currentOrg) return
-    setIsConnecting(true)
 
-    // Remove protocol and trailing slashes
-    const sanitizedDomain = shopUrl
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '')
-      .trim()
-
-    // Trigger OAuth redirect
-    window.location.href = `/api/shopify/auth?shop=${sanitizedDomain}&orgId=${currentOrg.id}`
-  }
 
   // Handle disconnect
   const handleDisconnect = async () => {
@@ -422,9 +407,11 @@ export default function ShopifyDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-8">
-            <form onSubmit={handleConnect} className="flex flex-col sm:flex-row gap-3 max-w-xl">
+            <form action="/api/shopify/auth" method="GET" className="flex flex-col sm:flex-row gap-3 max-w-xl">
+              <input type="hidden" name="orgId" value={currentOrg?.id || ''} />
               <Input
                 type="text"
+                name="shop"
                 placeholder="your-store-name.myshopify.com"
                 value={shopUrl}
                 onChange={(e) => setShopUrl(e.target.value)}
@@ -433,20 +420,10 @@ export default function ShopifyDashboard() {
               />
               <Button 
                 type="submit" 
-                disabled={isConnecting}
                 className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium flex items-center gap-1 px-6"
               >
-                {isConnecting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    Connect Store
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
+                Connect Store
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
           </CardContent>
